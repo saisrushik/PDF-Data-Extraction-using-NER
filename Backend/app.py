@@ -29,8 +29,39 @@ def extract_data():
         for page in pdf.pages:
             text += page.extract_text()
     
+    phone_pattern = r'\+?\d{1,3}[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
     
     # Apply NER on the extracted text
+    entries = text.split('\n')
+    people_data = []
+
+    for entry in entries:
+            # Apply spaCy's NLP pipeline
+            doc = nlp(entry)
+            person_data = {'Name': '', 'Phone': '', 'Address': '', 'Other': ''}
+
+            # Extract Name and Address
+            for ent in doc.ents:
+                if ent.label_ == "PERSON" and not person_data['Name']:
+                    person_data['Name'] = ent.text
+                elif ent.label_ in ["GPE", "LOC"] and not person_data['Address']:
+                    person_data['Address'] = ent.text
+
+            # Extract Phone Number using regex
+            phone_match = re.search(phone_pattern, entry)
+            if phone_match:
+                person_data['Phone'] = phone_match.group()
+
+            # Include remaining text as 'Other' if not categorized
+            if not person_data['Name'] or not person_data['Address']:
+                person_data['Other'] = entry
+
+            # Add to list if it contains data
+            if any(person_data.values()):
+                people_data.append(person_data)
+
+    '''
+    
     doc = nlp(text)
     extracted_data = {'Name': '', 'Phone': '', 'Address': ''}
     print(doc)
@@ -47,13 +78,14 @@ def extract_data():
             phone_match = re.search(phone_pattern, text)
             if phone_match:
                 extracted_data['Phone'] = phone_match.group()
-                '''
+            
                 
             if not extracted_data['Phone']:
                 extracted_data['Phone'] = ent.text
-                '''
+                
+    '''
 
-    return jsonify(extracted_data)
+    return jsonify(people_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
